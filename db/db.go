@@ -15,7 +15,7 @@ import (
 type Store interface {
 	GetPosts() ([]*model.Post, error)
 	GetPost(id int) (*model.Post, error)
-	GetComments() ([]*model.Comment, error)
+	GetComments(postID int) ([]*model.Comment, error)
 	GetComment(id int) (*model.Comment, error)
 	CreatePost(title, content, author string) (*model.Post, error)
 	CreateComment(postID int, author, content string, parentId *int) (*model.Comment, error)
