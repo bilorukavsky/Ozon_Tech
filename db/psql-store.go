@@ -46,30 +46,56 @@ func (s *PostgresStore) GetPost(id int) (*model.Post, error) {
 		return nil, err
 	}
 
+	comments, err := s.GetComments(p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	p.Comments = comments
+
 	return &p, nil
 }
 
-func (s *PostgresStore) GetComments() ([]*model.Comment, error) {
-	rows, err := s.db.Query("SELECT id, post_id, author, content, parent_id, child_ids FROM comments")
+func (s *PostgresStore) GetComments(postID int) ([]*model.Comment, error) {
+	rows, err := s.db.Query("SELECT id, post_id, content, author, parent_id FROM comments WHERE post_id = $1", postID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var comments []*model.Comment
+	commentMap := make(map[int]*model.Comment)
+
 	for rows.Next() {
 		var c model.Comment
-		if err := rows.Scan(&c.ID, &c.PostID, &c.Author, &c.Content, &c.ParentID, &c.Child); err != nil {
+		if err := rows.Scan(&c.ID, &c.PostID, &c.Author, &c.Content, &c.ParentID); err != nil {
 			return nil, err
 		}
-		comments = append(comments, &c)
+		commentMap[c.ID] = &c
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return comments, nil
+	// Обработка комментариев
+	for _, comment := range commentMap {
+		if comment.ParentID != nil {
+			parentComment, ok := commentMap[*comment.ParentID]
+			if ok {
+				parentComment.Child = append(parentComment.Child, comment)
+			}
+		}
+	}
+
+	// Возвращаем только комментарии верхнего уровня
+	var topLevelComments []*model.Comment
+	for _, comment := range commentMap {
+		if comment.ParentID == nil {
+			topLevelComments = append(topLevelComments, comment)
+		}
+	}
+
+	return topLevelComments, nil
 }
 
 func (s *PostgresStore) GetComment(id int) (*model.Comment, error) {

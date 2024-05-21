@@ -40,16 +40,25 @@ func (s *MemoryStore) GetPost(id int) (*model.Post, error) {
 		return nil, errors.New("post not found")
 	}
 
+	comments, err := s.GetComments(id)
+	if err != nil {
+		return nil, err
+	}
+
+	post.Comments = comments
+
 	return post, nil
 }
 
-func (s *MemoryStore) GetComments() ([]*model.Comment, error) {
+func (s *MemoryStore) GetComments(postID int) ([]*model.Comment, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var comments []*model.Comment
 	for _, comment := range s.comments {
-		comments = append(comments, comment)
+		if comment.PostID == postID && comment.ParentID == nil {
+			comments = append(comments, comment)
+		}
 	}
 
 	return comments, nil
@@ -117,9 +126,9 @@ func (s *MemoryStore) CreateComment(postID int, author, content string, parentID
 			return nil, errors.New("parent comment not found")
 		}
 		parentComment.Child = append(parentComment.Child, comment)
+	} else {
+		post.Comments = append(post.Comments, comment)
 	}
-
-	post.Comments = append(post.Comments, comment)
 
 	return comment, nil
 }
