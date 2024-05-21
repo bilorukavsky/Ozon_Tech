@@ -97,6 +97,10 @@ func (s *MemoryStore) CreateComment(postID int, author, content string, parentID
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if len(content) > 2000 {
+		return nil, errors.New("comment is too long")
+	}
+
 	post, ok := s.posts[postID]
 	if !ok {
 		return nil, errors.New("post not found")
@@ -104,10 +108,6 @@ func (s *MemoryStore) CreateComment(postID int, author, content string, parentID
 
 	if !post.CommentsEnabled {
 		return nil, errors.New("comments are disabled for this post")
-	}
-
-	if len(content) > 2000 {
-		return nil, errors.New("comment is too long")
 	}
 
 	id := len(s.comments) + 1
@@ -152,13 +152,13 @@ func (s *MemoryStore) UpdateComment(id int, content string) (*model.Comment, err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if len(content) > 2000 {
+		return nil, errors.New("comment is too long")
+	}
+
 	comment, ok := s.comments[id]
 	if !ok {
 		return nil, errors.New("comment not found")
-	}
-
-	if len(content) > 2000 {
-		return nil, errors.New("comment is too long")
 	}
 
 	comment.Content = content

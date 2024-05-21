@@ -3,6 +3,7 @@ package db
 import (
 	"PostCommentService/graph/model"
 	"database/sql"
+	"errors"
 )
 
 type PostgresStore struct {
@@ -126,6 +127,10 @@ func (s *PostgresStore) CreatePost(title, content, author string) (*model.Post, 
 }
 
 func (s *PostgresStore) CreateComment(postID int, author, content string, parentID *int) (*model.Comment, error) {
+	if len(content) > 2000 {
+		return nil, errors.New("comment is too long")
+	}
+
 	var c model.Comment
 	err := s.db.QueryRow("INSERT INTO comments(post_id, author, content, parent_id) VALUES($1, $2, $3, $4) RETURNING id", postID, author, content, parentID).Scan(&c.ID)
 	if err != nil {
@@ -150,6 +155,10 @@ func (s *PostgresStore) UpdatePost(id int, title, content string) (*model.Post, 
 }
 
 func (s *PostgresStore) UpdateComment(id int, content string) (*model.Comment, error) {
+	if len(content) > 2000 {
+		return nil, errors.New("comment is too long")
+	}
+
 	_, err := s.db.Exec("UPDATE comments SET content = $1 WHERE id = $2", content, id)
 	if err != nil {
 		return nil, err
