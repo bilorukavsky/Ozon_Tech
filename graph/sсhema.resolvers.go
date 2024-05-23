@@ -26,7 +26,7 @@ func (r *mutationResolver) DisableComments(ctx context.Context, postID int) (*mo
 	if err != nil {
 		return nil, err
 	}
-	return r.store.GetPost(postID)
+	return r.store.GetPost(postID, 0, 1)
 }
 
 // CreateComment is the resolver for the createComment field.
@@ -46,7 +46,7 @@ func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
 
 // Post is the resolver for the post field.
 func (r *queryResolver) Post(ctx context.Context, id int, commentsOffset *int, commentsLimit *int) (*model.Post, error) {
-	return r.store.GetPost(id)
+	return r.store.GetPost(id, *commentsOffset, *commentsLimit)
 }
 
 // CommentAdded is the resolver for the commentAdded field.

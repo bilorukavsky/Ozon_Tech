@@ -31,7 +31,7 @@ func (s *MemoryStore) GetPosts() ([]*model.Post, error) {
 	return posts, nil
 }
 
-func (s *MemoryStore) GetPost(id int) (*model.Post, error) {
+func (s *MemoryStore) GetPost(id, offset, limit int) (*model.Post, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -40,7 +40,7 @@ func (s *MemoryStore) GetPost(id int) (*model.Post, error) {
 		return nil, errors.New("post not found")
 	}
 
-	comments, err := s.GetComments(id)
+	comments, err := s.GetComments(id, offset, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *MemoryStore) GetPost(id int) (*model.Post, error) {
 	return post, nil
 }
 
-func (s *MemoryStore) GetComments(postID int) ([]*model.Comment, error) {
+func (s *MemoryStore) GetComments(postID, offset, limit int) ([]*model.Comment, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -61,7 +61,18 @@ func (s *MemoryStore) GetComments(postID int) ([]*model.Comment, error) {
 		}
 	}
 
-	return comments, nil
+	// Если количество комментариев меньше offset, возвращаем пустой список
+	if len(comments) <= offset {
+		return []*model.Comment{}, nil
+	}
+
+	// Вычисляем конечный индекс для среза комментариев
+	end := offset + limit
+	if end > len(comments) {
+		end = len(comments)
+	}
+
+	return comments[offset:end], nil
 }
 
 func (s *MemoryStore) GetComment(id int) (*model.Comment, error) {

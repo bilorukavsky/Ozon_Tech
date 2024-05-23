@@ -39,7 +39,7 @@ func (s *PostgresStore) GetPosts() ([]*model.Post, error) {
 	return posts, nil
 }
 
-func (s *PostgresStore) GetPost(id int) (*model.Post, error) {
+func (s *PostgresStore) GetPost(id, offset, limit int) (*model.Post, error) {
 	row := s.db.QueryRow("SELECT id, title, content, comments_enabled, author FROM posts WHERE id = $1", id)
 
 	var p model.Post
@@ -47,7 +47,7 @@ func (s *PostgresStore) GetPost(id int) (*model.Post, error) {
 		return nil, err
 	}
 
-	comments, err := s.GetComments(p.ID)
+	comments, err := s.GetComments(p.ID, offset, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +57,8 @@ func (s *PostgresStore) GetPost(id int) (*model.Post, error) {
 	return &p, nil
 }
 
-func (s *PostgresStore) GetComments(postID int) ([]*model.Comment, error) {
-	rows, err := s.db.Query("SELECT id, post_id, content, author, parent_id FROM comments WHERE post_id = $1", postID)
+func (s *PostgresStore) GetComments(postID, offset, limit int) ([]*model.Comment, error) {
+	rows, err := s.db.Query("SELECT id, post_id, content, author, parent_id FROM comments WHERE post_id = $1 ORDER BY id ASC ", postID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +78,10 @@ func (s *PostgresStore) GetComments(postID int) ([]*model.Comment, error) {
 		return nil, err
 	}
 
+	return processComments(commentMap, offset, limit), nil
+}
+
+func processComments(commentMap map[int]*model.Comment, offset, limit int) []*model.Comment {
 	// Обработка комментариев
 	for _, comment := range commentMap {
 		if comment.ParentID != nil {
@@ -88,7 +92,7 @@ func (s *PostgresStore) GetComments(postID int) ([]*model.Comment, error) {
 		}
 	}
 
-	// Возвращаем только комментарии верхнего уровня
+	// Возвращаем только комментарии верхнего уровня с учетом пагинации
 	var topLevelComments []*model.Comment
 	for _, comment := range commentMap {
 		if comment.ParentID == nil {
@@ -96,14 +100,24 @@ func (s *PostgresStore) GetComments(postID int) ([]*model.Comment, error) {
 		}
 	}
 
-	return topLevelComments, nil
+	// Применяем пагинацию
+	if len(topLevelComments) <= offset {
+		return []*model.Comment{}
+	}
+
+	end := offset + limit
+	if end > len(topLevelComments) {
+		end = len(topLevelComments)
+	}
+
+	return topLevelComments[offset:end]
 }
 
 func (s *PostgresStore) GetComment(id int) (*model.Comment, error) {
-	row := s.db.QueryRow("SELECT id, post_id, author, content, parent_id, child_ids FROM comments WHERE id = $1", id)
+	row := s.db.QueryRow("SELECT id, post_id, author, content, parent_id FROM comments WHERE id = $1", id)
 
 	var c model.Comment
-	if err := row.Scan(&c.ID, &c.PostID, &c.Author, &c.Content, &c.ParentID, &c.Child); err != nil {
+	if err := row.Scan(&c.ID, &c.PostID, &c.Author, &c.Content, &c.ParentID); err != nil {
 		return nil, err
 	}
 
@@ -131,8 +145,22 @@ func (s *PostgresStore) CreateComment(postID int, author, content string, parent
 		return nil, errors.New("comment is too long")
 	}
 
+	// Проверяем, разрешены ли комментарии для этого поста
+	var commentsEnabled bool
+	err := s.db.QueryRow("SELECT comments_enabled FROM posts WHERE id = $1", postID).Scan(&commentsEnabled)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("post not found")
+		}
+		return nil, err
+	}
+
+	if !commentsEnabled {
+		return nil, errors.New("comments are disabled for this post")
+	}
+
 	var c model.Comment
-	err := s.db.QueryRow("INSERT INTO comments(post_id, author, content, parent_id) VALUES($1, $2, $3, $4) RETURNING id", postID, author, content, parentID).Scan(&c.ID)
+	err = s.db.QueryRow("INSERT INTO comments(post_id, author, content, parent_id) VALUES($1, $2, $3, $4) RETURNING id", postID, author, content, parentID).Scan(&c.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +179,7 @@ func (s *PostgresStore) UpdatePost(id int, title, content string) (*model.Post, 
 		return nil, err
 	}
 
-	return s.GetPost(id)
+	return s.GetPost(id, 0, 0)
 }
 
 func (s *PostgresStore) UpdateComment(id int, content string) (*model.Comment, error) {
