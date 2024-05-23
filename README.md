@@ -27,8 +27,7 @@
   }
 ```
 - Получение конкретного поста по ID, с возможностью пагинации комментариев:
-```
-graphql
+```graphql
 query {
      post(id: 1, commentsOffset: 0, commentsLimit: 10) {
         id
@@ -44,8 +43,7 @@ query {
 }
 ```
 - Создание нового поста:
-```
-graphql
+```graphql
 mutation {
   createPost(title: "New Post", content: "This is a new post.", author: "Author") {
     id
@@ -56,8 +54,7 @@ mutation {
 }
 ```
 - Обновление существующего поста:
-```
-graphql
+```graphql
 mutation {
   updatePost(id: 1, title: "Updated Post", content: "This is an updated post.") {
     id
@@ -68,8 +65,7 @@ mutation {
 }
 ```
 - Отключение комментариев для поста:
-```
-graphql
+```graphql
 mutation {
   disableComments(postId: 1) {
     id
@@ -81,8 +77,7 @@ mutation {
 }
 ```
 - Создание нового комментария:
-```
-graphql
+```graphql
 mutation {
   createComment(postId: 1, author: "Commenter", content: "This is a comment.") {
     id
@@ -93,8 +88,7 @@ mutation {
 }
 ```
 - Обновление существующего комментария:
-```
-graphql
+```graphql
 mutation {
   updateComment(id: 1, content: "This is an updated comment.") {
     id
