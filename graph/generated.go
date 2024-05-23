@@ -76,7 +76,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Post  func(childComplexity int, id int) int
+		Post  func(childComplexity int, id int, commentsOffset *int, commentsLimit *int) int
 		Posts func(childComplexity int) int
 	}
 
@@ -94,7 +94,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Posts(ctx context.Context) ([]*model.Post, error)
-	Post(ctx context.Context, id int) (*model.Post, error)
+	Post(ctx context.Context, id int, commentsOffset *int, commentsLimit *int) (*model.Post, error)
 }
 type SubscriptionResolver interface {
 	CommentAdded(ctx context.Context, postID int) (<-chan *model.Comment, error)
@@ -273,7 +273,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Post(childComplexity, args["id"].(int)), true
+		return e.complexity.Query.Post(childComplexity, args["id"].(int), args["commentsOffset"].(*int), args["commentsLimit"].(*int)), true
 
 	case "Query.posts":
 		if e.complexity.Query.Posts == nil {
@@ -608,6 +608,24 @@ func (ec *executionContext) field_Query_post_args(ctx context.Context, rawArgs m
 		}
 	}
 	args["id"] = arg0
+	var arg1 *int
+	if tmp, ok := rawArgs["commentsOffset"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("commentsOffset"))
+		arg1, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["commentsOffset"] = arg1
+	var arg2 *int
+	if tmp, ok := rawArgs["commentsLimit"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("commentsLimit"))
+		arg2, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["commentsLimit"] = arg2
 	return args, nil
 }
 
@@ -1610,7 +1628,7 @@ func (ec *executionContext) _Query_post(ctx context.Context, field graphql.Colle
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Post(rctx, fc.Args["id"].(int))
+		return ec.resolvers.Query().Post(rctx, fc.Args["id"].(int), fc.Args["commentsOffset"].(*int), fc.Args["commentsLimit"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

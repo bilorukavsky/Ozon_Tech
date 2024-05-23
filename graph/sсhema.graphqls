@@ -18,7 +18,7 @@ type Comment {
 
 type Query {
   posts: [Post]
-  post(id: Int!): Post
+  post(id: Int!,commentsOffset: Int, commentsLimit: Int): Post
 }
 
 type Mutation {
