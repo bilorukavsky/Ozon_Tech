@@ -46,6 +46,9 @@ func (s *PostgresStore) GetPost(id, offset, limit int) (*model.Post, error) {
 	if err := row.Scan(&p.ID, &p.Title, &p.Content, &p.CommentsEnabled, &p.Author); err != nil {
 		return nil, err
 	}
+	if offset == 0 && limit == 0 {
+		return &p, nil
+	}
 
 	comments, err := s.GetComments(p.ID, offset, limit)
 	if err != nil {
@@ -82,24 +85,18 @@ func (s *PostgresStore) GetComments(postID, offset, limit int) ([]*model.Comment
 }
 
 func processComments(commentMap map[int]*model.Comment, offset, limit int) []*model.Comment {
-	// Обработка комментариев
+	var topLevelComments []*model.Comment
+
 	for _, comment := range commentMap {
 		if comment.ParentID != nil {
 			parentComment, ok := commentMap[*comment.ParentID]
 			if ok {
 				parentComment.Child = append(parentComment.Child, comment)
 			}
-		}
-	}
-
-	// Возвращаем только комментарии верхнего уровня с учетом пагинации
-	var topLevelComments []*model.Comment
-	for _, comment := range commentMap {
-		if comment.ParentID == nil {
+		} else {
 			topLevelComments = append(topLevelComments, comment)
 		}
 	}
-
 	// Применяем пагинацию
 	if len(topLevelComments) <= offset {
 		return []*model.Comment{}
